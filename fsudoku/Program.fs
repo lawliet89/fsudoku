@@ -39,9 +39,37 @@
         [for row in 0..8 do yield grid.[row, *]]
             |> List.map printRow
             |> String.concat "\n"
+
+    let Row row (grid : Grid) = grid.[row, *]
+    let Column column  (grid : Grid) = grid.[*, column]
+    let Box x y (grid : Grid) = 
+        let startX = x / 3 * 3
+        let startY = y /3 * 3
+        grid.[startX..(startX+3), startY..(startY+3)] |> Seq.cast |> Seq.toArray
+
+    let PossibleValues x y (grid : Grid) = 
+        let unusedValues list = 
+            (Set [1..9]) - (Set list)
+        let unusedRow = Row x grid |> Array.choose id |> unusedValues
+        let unusedColumn = Column y grid |> Array.choose id |> unusedValues
+        let unusedBox = Box x y grid |> Array.choose id |> unusedValues
+        unusedRow |> Set.intersect unusedColumn |> Set.intersect unusedBox
+        
+    let solve (grid : Grid) =
+        let solution : Grid = Array2D.copy grid
+        let coords = seq { for x in 0..8 do for y in 0..8 do yield (x, y)}
+
+        let rec findSolution x y = match (x, y) with
+                                      | (8, 8) -> None
+                                      | (8, y) -> findSolution 0 (y + 1)
+                                      | (_, _) -> findSolution (x + 1) y
+            
+        findSolution 0 0
+    
                                                               
     [<EntryPoint>]
     let main argv = 
         let grid = ReadGrid "../../example.txt"
         System.Console.Write (GridToString grid)
+        solve grid
         0 // return an integer exit code

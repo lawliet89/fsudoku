@@ -45,31 +45,55 @@
     let Box x y (grid : Grid) = 
         let startX = x / 3 * 3
         let startY = y /3 * 3
-        grid.[startX..(startX+3), startY..(startY+3)] |> Seq.cast |> Seq.toArray
+        grid.[startY..(startY+2), startX..(startX+2)] |> Seq.cast |> Seq.toArray
 
     let PossibleValues x y (grid : Grid) = 
-        let unusedValues list = 
-            (Set [1..9]) - (Set list)
-        let unusedRow = Row x grid |> Array.choose id |> unusedValues
-        let unusedColumn = Column y grid |> Array.choose id |> unusedValues
+        let unusedValues list = (Set [1..9]) - (Set list)
+        let unusedRow = Row y grid |> Array.choose id |> unusedValues
+        let unusedColumn = Column x grid |> Array.choose id |> unusedValues
         let unusedBox = Box x y grid |> Array.choose id |> unusedValues
         unusedRow |> Set.intersect unusedColumn |> Set.intersect unusedBox
         
     let solve (grid : Grid) =
         let solution : Grid = Array2D.copy grid
-        let coords = seq { for x in 0..8 do for y in 0..8 do yield (x, y)}
+        let isValid x y = (solution |> Row y |> Array.toList |> ValidList)
+                            && (solution |> Column x |> Array.toList |> ValidList)
+                            && (solution |> Box x y |> Array.toList |> ValidList)
 
-        let rec findSolution x y = match (x, y) with
-                                      | (8, 8) -> None
-                                      | (8, y) -> findSolution 0 (y + 1)
-                                      | (_, _) -> findSolution (x + 1) y
-            
-        findSolution 0 0
-    
-                                                              
+        let rec findSolution x y = 
+            match (x, y) with
+                | (8, 8) -> true
+                | (_, _) -> let nextX, nextY = match (x, y) with
+                                | (8, y) -> 0, (y + 1)
+                                | (_, _) -> (x + 1), y
+                            let currentSolution = solution.[y, x]
+                            match currentSolution with
+                                | Some(value) -> findSolution nextX nextY
+                                | None -> let possibleValues = PossibleValues x y solution
+                                          let rec explorePossibilities = function 
+                                                | [] -> false
+                                                | head :: tail -> solution.[y, x] <- Some head
+                                                                  let valid = isValid x y
+                                                                  let continuation = match valid with
+                                                                                        | true -> findSolution nextX nextY
+                                                                                        | false -> false
+                                                                  match continuation with
+                                                                        | true -> true
+                                                                        | false -> solution.[y, x] <- None
+                                                                                   explorePossibilities tail
+                                          explorePossibilities (possibleValues |> Set.toList)                                
+                            
+                                      
+        findSolution 0 0 |> ignore
+        solution
+                                   
     [<EntryPoint>]
     let main argv = 
         let grid = ReadGrid "../../example.txt"
         System.Console.Write (GridToString grid)
-        solve grid
+        System.Console.WriteLine ""
+        System.Console.WriteLine "Solved:"
+        solve grid |> GridToString |> System.Console.Write
+        System.Console.WriteLine ""
+        System.Console.ReadKey() |> ignore
         0 // return an integer exit code

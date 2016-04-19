@@ -1,5 +1,7 @@
 ﻿module fsudoku.program
 
+open System
+
     // Types
     type Value = Option<int>
     type Grid = Value[,]
@@ -13,7 +15,7 @@
                               headWithinRange && withinRange(tail)
         let someList = list |> List.choose id
         (list.Length = 9) && (withinRange list) && (someList.Length = (List.distinct someList |> List.length))
-    
+
     let public ReadGrid filename : Grid = 
        let intToOpt x = match x with
                             | 0 -> None
@@ -47,6 +49,10 @@
         let startY = y /3 * 3
         grid.[startY..(startY+2), startX..(startX+2)] |> Seq.cast |> Seq.toArray
 
+    let ValidCoordinate x y (grid : Grid) = (grid |> Row y |> Array.toList |> ValidList)
+                                                && (grid |> Column x |> Array.toList |> ValidList)
+                                                && (grid |> Box x y |> Array.toList |> ValidList)
+
     let PossibleValues x y (grid : Grid) = 
         let unusedValues list = (Set [1..9]) - (Set list)
         let unusedRow = Row y grid |> Array.choose id |> unusedValues
@@ -56,16 +62,14 @@
         
     let solve (grid : Grid) =
         let solution : Grid = Array2D.copy grid
-        let isValid x y = (solution |> Row y |> Array.toList |> ValidList)
-                            && (solution |> Column x |> Array.toList |> ValidList)
-                            && (solution |> Box x y |> Array.toList |> ValidList)
+        let isValid x y = ValidCoordinate x y solution
 
         let rec findSolution x y = 
             match (x, y) with
                 | (8, 8) -> true
                 | (_, _) -> let nextX, nextY = match (x, y) with
-                                | (8, y) -> 0, (y + 1)
-                                | (_, _) -> (x + 1), y
+                                                | (8, y) -> 0, (y + 1)
+                                                | (_, _) -> (x + 1), y
                             let currentSolution = solution.[y, x]
                             match currentSolution with
                                 | Some(value) -> findSolution nextX nextY
@@ -86,14 +90,25 @@
                                       
         findSolution 0 0 |> ignore
         solution
+
+    let VerifyGrid (grid : Grid) = 
+        let valid = seq { for x in 0..8 do for y in 0..8 do yield (x, y) }
+                        |> Seq.fold (fun acc (x, y) -> acc && (ValidCoordinate x y grid)) true
+        let anyNone = Seq.cast<Value> grid |> Seq.exists (fun x -> match x with | None -> true | Some(_) -> false )
+        valid && (not anyNone)
                                    
     [<EntryPoint>]
     let main argv = 
-        let grid = ReadGrid "../../example.txt"
+        let filepath = match argv with
+                           | [|first|] -> first
+                           | _ -> sprintf "%s../../difficult.txt" AppDomain.CurrentDomain.BaseDirectory
+        let grid = ReadGrid filepath
         System.Console.Write (GridToString grid)
         System.Console.WriteLine ""
-        System.Console.WriteLine "Solved:"
-        solve grid |> GridToString |> System.Console.Write
+        System.Console.WriteLine "Proposed Solution:"
+        let solution = solve grid
+        solution |> GridToString |> System.Console.Write
         System.Console.WriteLine ""
+        System.Console.WriteLine ("Validity: {0}", (VerifyGrid solution))
         System.Console.ReadKey() |> ignore
         0 // return an integer exit code

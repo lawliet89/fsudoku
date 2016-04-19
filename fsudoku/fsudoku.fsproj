@@ -58,6 +58,8 @@
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="example.txt" />
+    <Content Include="difficult.txt" />
+    <Content Include="no_solution.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

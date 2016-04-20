@@ -66,7 +66,7 @@ open System
 
         let rec findSolution x y = 
             match (x, y) with
-                | (8, 8) -> true
+                | (x, y) when x > 8 || y > 8 -> true
                 | (_, _) -> let nextX, nextY = match (x, y) with
                                                 | (8, y) -> 0, (y + 1)
                                                 | (_, _) -> (x + 1), y
